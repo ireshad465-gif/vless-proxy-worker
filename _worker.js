@@ -1,22 +1,20 @@
 // =========================================================================
-// Cloudflare Worker VLESS Proxy with 0-RTT EarlyData & DNS-over-HTTPS
+// Cloudflare Worker VLESS Edge Proxy (v2.0 - Multi-ProxyIP & AI Unblock)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
-// Default User UUID (can also be overridden by environment variable UUID)
 let userID = 'bdeb28a4-ca3f-4665-9da2-6d92b718e4eb';
 
-// Default ProxyIP fallbacks for sites behind Cloudflare CDN
-let proxyIPs = [
-  'cdn-all.xn--b6gac.eu.org',
-  'edgetunnel.anycast.eu.org',
-  'cdn.anycast.eu.org',
-  'proxyip.fxxk.dedyn.io',
-  'workers.cloudflare.cyou'
+// Verified, active ProxyIPs across regions
+const defaultProxyIPs = [
+  'proxyip.us.fxxk.dedyn.io',       // US (Unblocks Arena.ai, ChatGPT, etc.)
+  'proxyip.aliyun.fxxk.dedyn.io',   // SG (Low ping for South Asia)
+  'proxyip.oracle.fxxk.dedyn.io',   // Oracle Cloud
+  'proxyip.vultr.fxxk.dedyn.io',    // Vultr
+  'proxyip.cmliussss.net',          // Global Multi-CDN
+  'cdn-all.xn--b6gac.eu.org'        // CF reverse proxy
 ];
-let proxyIP = proxyIPs[0];
 
-// DoH (DNS-over-HTTPS) providers for UDP DNS resolution (port 53)
 const dohURLs = [
   'https://1.1.1.1/dns-query',
   'https://cloudflare-dns.com/dns-query',
@@ -36,37 +34,45 @@ export default {
   async fetch(request, env, ctx) {
     try {
       if (env.UUID) userID = env.UUID;
-      if (env.PROXYIP) proxyIP = env.PROXYIP;
 
       const upgradeHeader = request.headers.get('Upgrade');
       const url = new URL(request.url);
 
-      // 1. WebSocket VLESS Connection
-      if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
-        return await vlessOverWSHandler(request);
+      // Extract custom proxyIP from query param (?proxyip=...) or path (/proxyip=...)
+      let customProxyIP = url.searchParams.get('proxyip') || '';
+      if (!customProxyIP) {
+        const match = url.pathname.match(/\/proxyip=([^/&]+)/);
+        if (match) customProxyIP = match[1];
+      }
+      if (!customProxyIP && env.PROXYIP) {
+        customProxyIP = env.PROXYIP;
       }
 
-      // 2. HTTP Requests (Web Dashboard & Config Generator)
+      // 1. WebSocket VLESS Proxy Handling
+      if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
+        return await vlessOverWSHandler(request, customProxyIP);
+      }
+
+      // 2. HTTP Web Interface and Configuration Delivery
+      const host = request.headers.get('Host') || url.hostname;
+
       switch (url.pathname) {
         case '/': {
-          return new Response(generateHomePage(request, userID), {
+          return new Response(generateHomePage(host, userID), {
             status: 200,
             headers: { 'Content-Type': 'text/html; charset=utf-8' }
           });
         }
         case `/${userID}`:
         case `/sub`: {
-          const host = request.headers.get('Host') || url.hostname;
-          const config = getVLESSConfig(userID, host);
-          return new Response(config, {
+          return new Response(generateSubConfig(host, userID), {
             status: 200,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
           });
         }
         case '/raw': {
-          const host = request.headers.get('Host') || url.hostname;
-          const vlessLink = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fed%3D2048#${host}`;
-          return new Response(vlessLink, {
+          const usLink = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#US-AI-Unlock-${host}`;
+          return new Response(usLink, {
             status: 200,
             headers: { 'Content-Type': 'text/plain; charset=utf-8' }
           });
@@ -83,17 +89,16 @@ export default {
 /**
  * Handles incoming WebSocket VLESS connection
  * @param {Request} request
+ * @param {string} customProxyIP
  */
-async function vlessOverWSHandler(request) {
+async function vlessOverWSHandler(request, customProxyIP) {
   const webSocketPair = new WebSocketPair();
   const [client, webSocket] = Object.values(webSocketPair);
   webSocket.accept();
 
   let address = '';
   let portWithRandomLog = '';
-  const log = (info, event) => {
-    // console.log(`[${address}:${portWithRandomLog}] ${info}`, event || '');
-  };
+  const log = (info, event) => {};
 
   // Support 0-RTT early data from Sec-WebSocket-Protocol header
   const earlyDataHeader = request.headers.get('sec-websocket-protocol') || '';
@@ -132,7 +137,6 @@ async function vlessOverWSHandler(request) {
         throw new Error(message);
       }
 
-      // VLESS Response Header: [version, addonsLength=0]
       const vlessResponseHeader = new Uint8Array([vlessVersion[0], 0]);
       const rawClientData = chunk.slice(rawDataIndex);
 
@@ -148,8 +152,8 @@ async function vlessOverWSHandler(request) {
         }
       }
 
-      // Handle TCP outbound
-      handleTCPOutBound(remoteSocketWrapper, addressRemote, portRemote, rawClientData, webSocket, vlessResponseHeader, log);
+      // Handle TCP outbound with custom or smart ProxyIP routing
+      handleTCPOutBound(remoteSocketWrapper, addressRemote, portRemote, rawClientData, webSocket, vlessResponseHeader, customProxyIP, log);
     },
     close() {
       log('readableWebSocketStream is closed');
@@ -168,30 +172,31 @@ async function vlessOverWSHandler(request) {
 }
 
 /**
- * Outbound TCP Connection Manager with ProxyIP retry
+ * Outbound TCP Connection Manager with Smart ProxyIP Routing
  */
-async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, vlessResponseHeader, log) {
-  async function connectAndWrite(address, port) {
+async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, vlessResponseHeader, customProxyIP, log) {
+  async function connectAndWrite(targetHost, targetPort) {
     const tcpSocket = connect({
-      hostname: address,
-      port: port
+      hostname: targetHost,
+      port: targetPort
     });
     remoteSocket.value = tcpSocket;
-    log(`Connected to ${address}:${port}`);
     const writer = tcpSocket.writable.getWriter();
     await writer.write(rawClientData);
     writer.releaseLock();
     return tcpSocket;
   }
 
-  async function retry() {
+  // If a specific ProxyIP was requested by client URL (e.g. proxyip=proxyip.us.fxxk.dedyn.io), route directly through it
+  const isDirect = customProxyIP === 'direct';
+  const targetProxy = (customProxyIP && !isDirect) 
+    ? customProxyIP 
+    : (isDirect ? '' : defaultProxyIPs[0]);
+
+  async function retry(fallbackProxy) {
     try {
-      const selectedProxy = proxyIP || proxyIPs[Math.floor(Math.random() * proxyIPs.length)];
-      log(`Retrying with ProxyIP: ${selectedProxy}`);
-      const tcpSocket = await connectAndWrite(selectedProxy, portRemote);
-      tcpSocket.closed.catch((err) => {
-        log('retry tcpSocket closed error', err);
-      }).finally(() => {
+      const tcpSocket = await connectAndWrite(fallbackProxy, portRemote);
+      tcpSocket.closed.catch(() => {}).finally(() => {
         safeCloseWebSocket(webSocket);
       });
       remoteSocketToWS(tcpSocket, webSocket, vlessResponseHeader, null, log);
@@ -200,12 +205,28 @@ async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
     }
   }
 
-  try {
-    const tcpSocket = await connectAndWrite(addressRemote, portRemote);
-    remoteSocketToWS(tcpSocket, webSocket, vlessResponseHeader, retry, log);
-  } catch (err) {
-    log(`Direct connection to ${addressRemote} failed, falling back to ProxyIP`, err);
-    await retry();
+  // If customProxyIP is specified, use it directly to guarantee unblocking (e.g., Arena AI, ChatGPT)
+  if (targetProxy) {
+    try {
+      const tcpSocket = await connectAndWrite(targetProxy, portRemote);
+      remoteSocketToWS(tcpSocket, webSocket, vlessResponseHeader, async () => {
+        const altProxy = defaultProxyIPs[Math.floor(Math.random() * defaultProxyIPs.length)];
+        await retry(altProxy);
+      }, log);
+    } catch (err) {
+      const altProxy = defaultProxyIPs[1] || defaultProxyIPs[0];
+      await retry(altProxy);
+    }
+  } else {
+    // Direct attempt with ProxyIP fallback
+    try {
+      const tcpSocket = await connectAndWrite(addressRemote, portRemote);
+      remoteSocketToWS(tcpSocket, webSocket, vlessResponseHeader, async () => {
+        await retry(defaultProxyIPs[0]);
+      }, log);
+    } catch (err) {
+      await retry(defaultProxyIPs[0]);
+    }
   }
 }
 
@@ -229,12 +250,8 @@ async function remoteSocketToWS(remoteSocket, webSocket, vlessResponseHeader, re
         webSocket.send(chunk);
       }
     },
-    close() {
-      log(`remoteSocket.readable closed, hasIncomingData: ${hasIncomingData}`);
-    },
-    abort(reason) {
-      log('remoteSocket.readable abort', reason);
-    }
+    close() {},
+    abort(reason) {}
   })).catch((error) => {
     safeCloseWebSocket(webSocket);
   });
@@ -263,7 +280,6 @@ function makeReadableWebSocketStream(webSocketServer, earlyDataHeader, log) {
       });
 
       webSocketServer.addEventListener('error', (err) => {
-        log('webSocketServer error', err);
         controller.error(err);
       });
 
@@ -328,9 +344,7 @@ async function handleUDPOutBound(webSocket, vlessResponseHeader, log) {
         }
       }
     }
-  })).catch((error) => {
-    log('DNS DoH error', error);
-  });
+  })).catch(() => {});
 
   const writer = transformStream.writable.getWriter();
   return {
@@ -351,7 +365,6 @@ function processVlessHeader(vlessBuffer, expectedUserID) {
   const version = new Uint8Array(vlessBuffer.slice(0, 1));
   const userUUID = stringifyUUID(new Uint8Array(vlessBuffer.slice(1, 17)));
 
-  // If strict UUID matching is needed:
   if (expectedUserID && userUUID.toLowerCase() !== expectedUserID.toLowerCase()) {
     return { hasError: true, message: 'invalid user UUID' };
   }
@@ -365,7 +378,7 @@ function processVlessHeader(vlessBuffer, expectedUserID) {
   } else if (command === 2) {
     isUDP = true;
   } else {
-    return { hasError: true, message: `command ${command} not supported (01-tcp, 02-udp)` };
+    return { hasError: true, message: `command ${command} not supported` };
   }
 
   const portIndex = 18 + optLength + 1;
@@ -414,9 +427,6 @@ function processVlessHeader(vlessBuffer, expectedUserID) {
   };
 }
 
-/**
- * Base64 helper for 0-RTT
- */
 function base64ToArrayBuffer(base64Str) {
   if (!base64Str) return { error: null };
   try {
@@ -429,9 +439,6 @@ function base64ToArrayBuffer(base64Str) {
   }
 }
 
-/**
- * Convert byte array to UUID string
- */
 function stringifyUUID(arr, offset = 0) {
   const byteToHex = [];
   for (let i = 0; i < 256; ++i) {
@@ -458,96 +465,80 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Returns plain text VLESS configurations
+ * Sub Configurations
  */
-function getVLESSConfig(userID, hostName) {
-  const vlessMain = `vless://${userID}@${hostName}:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#${hostName}`;
-  const cleanIPLink = `vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${hostName}&fp=chrome&type=ws&host=${hostName}&path=%2F%3Fed%3D2048#CF-CleanIP-${hostName}`;
+function generateSubConfig(host, userID) {
+  const nodeUS = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🇺🇸 US - Arena AI & All Sites Unblock`;
+  const nodeSG = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🇸🇬 SG - Ultra Fast Low Ping`;
+  const nodeCleanIP = `vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP - High Speed`;
 
-  return `================================================================
-⚡ VLESS Links (Copy and import into v2rayNG / Shadowrocket / NekoBox)
-================================================================
-
-1. Standard Domain Node:
-${vlessMain}
-
-2. Cloudflare Clean IP Node (Recommended for Speed & Stability):
-${cleanIPLink}
-
-================================================================
-📱 Clash Meta Configuration:
-================================================================
-- name: ${hostName}
-  type: vless
-  server: ${hostName}
-  port: 443
-  uuid: ${userID}
-  network: ws
-  tls: true
-  udp: true
-  sni: ${hostName}
-  client-fingerprint: chrome
-  ws-opts:
-    path: "/?ed=2048"
-    headers:
-      Host: ${hostName}
-`;
+  return `${nodeUS}\n${nodeSG}\n${nodeCleanIP}`;
 }
 
 /**
- * HTML Web Page with clean UI, nodes, QR code & setup guide
+ * Web Dashboard Page
  */
-function generateHomePage(request, userID) {
-  const host = request.headers.get('Host') || 'vless-proxy';
-  const vlessLink = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fed%3D2048#VLESS-${host}`;
-  const cleanLink = `vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fed%3D2048#CF-CleanIP-${host}`;
+function generateHomePage(host, userID) {
+  const nodeUS = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🇺🇸 US - Arena AI & All Sites Unblock`;
+  const nodeSG = `vless://${userID}@${host}:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🇸🇬 SG - Ultra Fast Low Ping`;
+  const nodeCleanIP = `vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP - High Speed`;
 
   return `<!DOCTYPE html>
 <html lang="si">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VLESS VPN Node - ${host}</title>
+  <title>VLESS VPN Nodes - ${host}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; justify-content: center; }
-    .container { max-width: 800px; width: 100%; background: #1e293b; border-radius: 16px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
-    .badge { display: inline-block; padding: 6px 14px; background: #10b981; color: #fff; border-radius: 20px; font-weight: bold; font-size: 14px; margin-bottom: 15px; }
-    h1 { font-size: 26px; margin-bottom: 10px; color: #38bdf8; }
-    p { color: #94a3b8; font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
-    .card { background: #0f172a; border-radius: 12px; padding: 18px; margin-bottom: 20px; border: 1px solid #334155; }
-    .card h3 { font-size: 17px; margin-bottom: 10px; color: #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
-    .code-box { background: #020617; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 13px; color: #38bdf8; word-break: break-all; user-select: all; }
-    .btn { background: #3b82f6; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
-    .btn:hover { background: #2563eb; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
-    @media(max-width: 600px) { .grid { grid-template-columns: 1fr; } }
-    .stat { background: #1e293b; padding: 12px; border-radius: 8px; border: 1px solid #334155; }
-    .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; }
-    .stat-val { font-size: 15px; font-weight: 600; color: #e2e8f0; margin-top: 4px; word-break: break-all; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0f19; color: #f1f5f9; padding: 20px; display: flex; justify-content: center; }
+    .container { max-width: 820px; width: 100%; background: #131b2e; border-radius: 16px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #1e293b; }
+    .badge { display: inline-block; padding: 6px 14px; background: #10b981; color: #fff; border-radius: 20px; font-weight: bold; font-size: 13px; margin-bottom: 15px; }
+    h1 { font-size: 24px; color: #38bdf8; margin-bottom: 8px; }
+    p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+    .card { background: #0b0f19; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #1e293b; }
+    .card-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-title h3 { font-size: 15px; color: #e2e8f0; font-weight: 600; }
+    .code-box { background: #030712; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #38bdf8; word-break: break-all; margin-top: 6px; user-select: all; }
+    .btn { background: #2563eb; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; }
+    .btn:hover { background: #1d4ed8; }
+    .tag { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+    .tag-us { background: #7c3aed; color: #fff; }
+    .tag-sg { background: #059669; color: #fff; }
+    .tag-cf { background: #d97706; color: #fff; }
   </style>
 </head>
 <body>
   <div class="container">
-    <span class="badge">● Server Active & Running</span>
-    <h1>🌐 Cloudflare VLESS Edge Proxy</h1>
-    <p>Zero-configuration high-speed serverless proxy node with 0-RTT EarlyData and DoH DNS support.</p>
+    <span class="badge">● Server Active & Optimized</span>
+    <h1>🌐 VLESS Edge VPN Nodes</h1>
+    <p>All nodes include 0-RTT EarlyData, DoH DNS, and Reverse ProxyIP routing to unblock Arena AI, ChatGPT, and Cloudflare-protected sites.</p>
 
+    <!-- Node 1: US AI Unblock -->
     <div class="card">
-      <h3>🚀 Node 1: Standard Domain Link <button class="btn" onclick="navigator.clipboard.writeText('${vlessLink}');alert('Copied!')">Copy Link</button></h3>
-      <div class="code-box">${vlessLink}</div>
+      <div class="card-title">
+        <h3>🇺🇸 Node 1: US AI Unblock <span class="tag tag-us">Arena AI / ChatGPT / WAF Fix</span></h3>
+        <button class="btn" onclick="navigator.clipboard.writeText('${nodeUS}');alert('Node 1 Copied!')">Copy Link</button>
+      </div>
+      <div class="code-box">${nodeUS}</div>
     </div>
 
+    <!-- Node 2: Singapore Ultra Fast -->
     <div class="card">
-      <h3>⚡ Node 2: Cloudflare Clean IP Link (Super Fast) <button class="btn" onclick="navigator.clipboard.writeText('${cleanLink}');alert('Copied!')">Copy Link</button></h3>
-      <div class="code-box">${cleanLink}</div>
+      <div class="card-title">
+        <h3>🇸🇬 Node 2: Singapore Ultra Fast <span class="tag tag-sg">Lowest Ping / Sri Lanka</span></h3>
+        <button class="btn" onclick="navigator.clipboard.writeText('${nodeSG}');alert('Node 2 Copied!')">Copy Link</button>
+      </div>
+      <div class="code-box">${nodeSG}</div>
     </div>
 
-    <div class="grid">
-      <div class="stat"><div class="stat-label">Host / SNI</div><div class="stat-val">${host}</div></div>
-      <div class="stat"><div class="stat-label">Port</div><div class="stat-val">443 (TLS)</div></div>
-      <div class="stat"><div class="stat-label">Transport / Path</div><div class="stat-val">ws / ?ed=2048</div></div>
-      <div class="stat"><div class="stat-label">UUID</div><div class="stat-val">${userID}</div></div>
+    <!-- Node 3: Clean IP Node -->
+    <div class="card">
+      <div class="card-title">
+        <h3>⚡ Node 3: Cloudflare Clean IP <span class="tag tag-cf">High Speed Downloads</span></h3>
+        <button class="btn" onclick="navigator.clipboard.writeText('${nodeCleanIP}');alert('Node 3 Copied!')">Copy Link</button>
+      </div>
+      <div class="code-box">${nodeCleanIP}</div>
     </div>
   </div>
 </body>
