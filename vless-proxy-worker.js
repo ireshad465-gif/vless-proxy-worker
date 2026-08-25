@@ -1,19 +1,18 @@
 // =========================================================================
-// Cloudflare Worker VLESS Edge Proxy (v4.0 - Full Social Media & Zoom Hub)
+// Cloudflare Worker VLESS Edge Proxy (v5.0 - Dialog SL Social Media Pack Spec)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
 let userID = 'bdeb28a4-ca3f-4665-9da2-6d92b718e4eb';
 
 const countryProxyMap = {
-  'us': 'proxyip.us.fxxk.dedyn.io',       // 🇺🇸 United States (Arena AI, ChatGPT)
-  'sg': 'proxyip.aliyun.fxxk.dedyn.io',   // 🇸🇬 Singapore (Ultra Low Latency)
+  'us': 'proxyip.us.fxxk.dedyn.io',       // 🇺🇸 US (Arena AI / ChatGPT / Sites)
+  'sg': 'proxyip.aliyun.fxxk.dedyn.io',   // 🇸🇬 Singapore (Ultra Low Ping)
   'jp': 'proxyip.jp.fxxk.dedyn.io',       // 🇯🇵 Japan
   'hk': 'proxyip.hk.fxxk.dedyn.io',       // 🇭🇰 Hong Kong
-  'de': 'proxyip.oracle.fxxk.dedyn.io',   // 🇩🇪 Germany / Europe
-  'uk': 'proxyip.vultr.fxxk.dedyn.io',    // 🇬🇧 United Kingdom
-  'global': 'proxyip.cmliussss.net',      // 🌐 Global Anycast
-  'cf': 'cdn-all.xn--b6gac.eu.org'        // ⚡ Cloudflare Clean
+  'de': 'proxyip.oracle.fxxk.dedyn.io',   // 🇩🇪 Germany
+  'uk': 'proxyip.vultr.fxxk.dedyn.io',    // 🇬🇧 UK
+  'global': 'proxyip.cmliussss.net'
 };
 
 const dohURLs = [
@@ -26,12 +25,6 @@ const WS_READY_STATE_OPEN = 1;
 const WS_READY_STATE_CLOSING = 2;
 
 export default {
-  /**
-   * @param {Request} request
-   * @param {{UUID?: string, PROXYIP?: string}} env
-   * @param {ExecutionContext} ctx
-   * @returns {Promise<Response>}
-   */
   async fetch(request, env, ctx) {
     try {
       if (env.UUID) userID = env.UUID;
@@ -45,7 +38,6 @@ export default {
       if (!customProxyIP && countryCode && countryProxyMap[countryCode.toLowerCase()]) {
         customProxyIP = countryProxyMap[countryCode.toLowerCase()];
       }
-
       if (!customProxyIP) {
         const match = url.pathname.match(/\/proxyip=([^/&]+)/);
         if (match) customProxyIP = match[1];
@@ -54,7 +46,7 @@ export default {
         customProxyIP = env.PROXYIP;
       }
 
-      // 1. WebSocket VLESS Proxy
+      // 1. WebSocket VLESS Proxy (Supports both TLS 443 & Non-TLS 80/8080)
       if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
         return await vlessOverWSHandler(request, customProxyIP);
       }
@@ -423,79 +415,59 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Generates all 16 Multi-Country & Social Media Configs
+ * Generates all Dialog SL Social Media Pack Spec Configs
  */
 function generateAllConfigs(host, userID) {
   const c = [];
   
-  // 1. Zoom Package Configs
-  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇺🇸 US - Arena AI & All Sites`);
-  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇸🇬 SG - Ultra Fast Low Ping`);
-  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇯🇵 JP - Japan Fast`);
-  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇩🇪 DE - Germany Oracle`);
+  // A. Dialog Tested Cloudflare Clean IPs (Port 443 TLS)
+  c.push(`vless://${userID}@104.16.51.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog VIP CleanIP 🇺🇸 US (Arena AI Unblock)`);
+  c.push(`vless://${userID}@104.16.51.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog VIP CleanIP 🇸🇬 SG (Low Ping Fast)`);
+  c.push(`vless://${userID}@104.17.65.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog CleanIP 2 🇯🇵 JP (Japan Stream)`);
+  c.push(`vless://${userID}@172.67.73.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog CleanIP 3 🇩🇪 DE (Germany Oracle)`);
 
-  // 2. YouTube Package Configs
-  c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇺🇸 US - Arena AI & All Sites`);
-  c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇸🇬 SG - Ultra Fast`);
-  c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇯🇵 JP - Japan High Speed`);
-  c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇩🇪 DE - Germany Oracle`);
-  
-  // 3. WhatsApp Package Configs
-  c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇺🇸 US - Arena AI & All Sites`);
-  c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇸🇬 SG - Ultra Fast`);
-  c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇯🇵 JP - Japan Fast`);
+  // B. Dialog YouTube Bug Hosts (Port 443)
+  c.push(`vless://${userID}@104.16.53.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔴 Dialog YouTube 🇺🇸 US (All Sites Free)`);
+  c.push(`vless://${userID}@104.16.53.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔴 Dialog YouTube 🇸🇬 SG (Fast Browsing)`);
 
-  // 4. Facebook & Instagram Package Configs
-  c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇺🇸 US - Arena AI & All Sites`);
-  c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇸🇬 SG - Ultra Fast`);
-  c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇯🇵 JP - Japan Fast`);
+  // C. Dialog WhatsApp Bug Hosts (Port 443)
+  c.push(`vless://${userID}@104.19.143.20:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🟢 Dialog WhatsApp 🇺🇸 US (All Sites Free)`);
+  c.push(`vless://${userID}@104.19.143.20:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🟢 Dialog WhatsApp 🇸🇬 SG (Low Ping)`);
 
-  // 5. Super Clean IP Multi-Country Configs
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇺🇸 US - High Speed`);
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇸🇬 SG - Low Latency`);
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.hk.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇭🇰 HK - Hong Kong`);
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.vultr.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇬🇧 UK - United Kingdom`);
+  // D. Dialog Facebook & Instagram (Port 443)
+  c.push(`vless://${userID}@104.22.5.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔵 Dialog FB/Insta 🇺🇸 US (All Sites Free)`);
+  c.push(`vless://${userID}@104.22.5.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔵 Dialog FB/Insta 🇸🇬 SG (Ultra Fast)`);
+
+  // E. Zoom Bug Host (Port 443)
+  c.push(`vless://${userID}@141.101.120.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#📹 Dialog Zoom 🇺🇸 US (All Sites Free)`);
+  c.push(`vless://${userID}@141.101.120.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#📹 Dialog Zoom 🇸🇬 SG (Low Ping)`);
 
   return c.join('\n');
 }
 
-/**
- * Web Dashboard Page (Embeds rich UI)
- */
 function generateHomePage(host, userID) {
   const subLink = `https://${host}/sub`;
   const rawConfigs = generateAllConfigs(host, userID).split('\n');
 
   const cardsHtml = rawConfigs.map((cfg, idx) => {
     const name = decodeURIComponent(cfg.split('#')[1] || `Node ${idx + 1}`);
-    let group = 'cf';
-    let tagHtml = '<span class="tag tag-cf">Clean IP 104.16.1.1</span>';
-    
-    if (name.includes('Zoom')) {
-      group = 'zoom';
-      tagHtml = '<span class="tag tag-zoom">Zoom Bug Host (zoom.us)</span>';
-    } else if (name.includes('YouTube')) {
-      group = 'yt';
-      tagHtml = '<span class="tag tag-yt">YouTube Bug Host (www.youtube.com)</span>';
-    } else if (name.includes('WhatsApp')) {
-      group = 'wa';
-      tagHtml = '<span class="tag tag-wa">WhatsApp Bug Host (web.whatsapp.com)</span>';
-    } else if (name.includes('Facebook')) {
-      group = 'fb';
-      tagHtml = '<span class="tag tag-fb">FB/Insta Bug Host (m.facebook.com)</span>';
-    }
+    let badgeClass = 'tag-cf';
+    if (name.includes('YouTube')) badgeClass = 'tag-yt';
+    if (name.includes('WhatsApp')) badgeClass = 'tag-wa';
+    if (name.includes('FB/Insta')) badgeClass = 'tag-fb';
+    if (name.includes('Zoom')) badgeClass = 'tag-zoom';
 
     return `
-    <div class="card" data-category="${group}">
+    <div class="card">
       <div class="card-top">
         <div class="card-title-group">
           <span class="node-title">${name}</span>
-          <div class="tags">${tagHtml}</div>
+          <div class="tags"><span class="tag ${badgeClass}">Dialog Zero-Rated Clean IP</span></div>
         </div>
       </div>
       <div class="code-wrapper" id="cfg-${idx}">${cfg}</div>
       <div class="card-footer">
-        <span class="host-info">Port: 443 | TLS: Enabled</span>
+        <span class="host-info">Dialog Zero Data Bypass | Port: 443</span>
         <button class="btn" onclick="copyConfig('cfg-${idx}', this)">📋 Copy Link</button>
       </div>
     </div>`;
@@ -506,7 +478,7 @@ function generateHomePage(host, userID) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VLESS Social Media & Zoom VPN Hub - ${host}</title>
+  <title>Dialog Social Media Unlimited VLESS Hub - ${host}</title>
   <style>
     :root {
       --bg: #0b0f19;
@@ -514,7 +486,6 @@ function generateHomePage(host, userID) {
       --card-inner: #080c14;
       --border: #1e293b;
       --primary: #38bdf8;
-      --primary-hover: #0284c7;
       --text: #f8fafc;
       --text-muted: #94a3b8;
     }
@@ -524,15 +495,12 @@ function generateHomePage(host, userID) {
     .header { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
     .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
     .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
-    h1 { font-size: 26px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
     .subtitle { color: var(--text-muted); font-size: 14px; }
     .sub-banner { background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
     .sub-info { flex: 1; min-width: 250px; }
     .sub-title { font-size: 14px; font-weight: 700; color: #60a5fa; }
     .sub-url { font-family: monospace; font-size: 12px; color: #cbd5e1; word-break: break-all; margin-top: 4px; background: #090d16; padding: 6px 10px; border-radius: 6px; }
-    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-    .filter-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-    .filter-btn:hover, .filter-btn.active { background: var(--primary); color: #0b0f19; border-color: var(--primary); }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
     @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s; }
@@ -547,7 +515,7 @@ function generateHomePage(host, userID) {
     .tag-wa { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
     .tag-fb { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
     .tag-cf { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
+    .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
     .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .host-info { font-size: 11px; color: var(--text-muted); }
     .btn { background: var(--primary); color: #0b0f19; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
@@ -562,26 +530,17 @@ function generateHomePage(host, userID) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="badge"><span class="badge-dot"></span> Server Active (Cloudflare Edge Worker)</div>
-      <h1>🌐 VLESS Social Media & Zoom VPN Hub</h1>
-      <p class="subtitle">Zoom, YouTube, WhatsApp, Facebook, Clean IP පැකේජ මඟින් Full Internet Unlimited කරගැනීමට සියලුම රටවල Nodes පහතින් Copy කරගන්න.</p>
+      <div class="badge"><span class="badge-dot"></span> Dialog Zero-Rated Special Nodes</div>
+      <h1>🇱🇰 Dialog Social Media Unlimited VLESS Hub</h1>
+      <p class="subtitle">Dialog Social Media (YouTube, WhatsApp, FB, Insta, Zoom) පැකේජය මඟින් Normal Data 0 MB කැපී Full Internet වැඩ කරන Clean IP Nodes.</p>
 
       <div class="sub-banner">
         <div class="sub-info">
-          <div class="sub-title">📥 All-in-One Subscription Link (සියලුම Nodes 16ම එකවර App එකට දාගන්න)</div>
+          <div class="sub-title">📥 All-in-One Subscription Link (සියලුම Dialog Nodes එකවර Import කරන්න)</div>
           <div class="sub-url">${subLink}</div>
         </div>
         <button class="btn btn-sub" onclick="copyText('${subLink}', this)">📋 Copy Subscription Link</button>
       </div>
-    </div>
-
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="filterCards('all', this)">All Nodes (17)</button>
-      <button class="filter-btn" onclick="filterCards('zoom', this)">📹 Zoom Package (4)</button>
-      <button class="filter-btn" onclick="filterCards('yt', this)">🔴 YouTube Package (4)</button>
-      <button class="filter-btn" onclick="filterCards('wa', this)">🟢 WhatsApp Package (3)</button>
-      <button class="filter-btn" onclick="filterCards('fb', this)">🔵 Facebook & Insta (3)</button>
-      <button class="filter-btn" onclick="filterCards('cf', this)">⚡ Clean IP Nodes (4)</button>
     </div>
 
     <div class="grid">
@@ -619,18 +578,6 @@ function generateHomePage(host, userID) {
           btn.innerText = '📋 Copy Subscription Link';
           btn.classList.remove('copied');
         }, 2000);
-      });
-    }
-    function filterCards(cat, btn) {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const cards = document.querySelectorAll('.card');
-      cards.forEach(c => {
-        if (cat === 'all' || c.getAttribute('data-category') === cat) {
-          c.style.display = 'flex';
-        } else {
-          c.style.display = 'none';
-        }
       });
     }
   </script>
