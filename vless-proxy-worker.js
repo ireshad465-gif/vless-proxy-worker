@@ -1,5 +1,5 @@
 // =========================================================================
-// Cloudflare Worker VLESS Edge Proxy (v5.0 - Dialog SL Social Media Pack Spec)
+// Cloudflare Worker VLESS Edge Proxy (v6.0 - Dialog Non-TLS 80 & TLS 443)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
@@ -7,12 +7,11 @@ let userID = 'bdeb28a4-ca3f-4665-9da2-6d92b718e4eb';
 
 const countryProxyMap = {
   'us': 'proxyip.us.fxxk.dedyn.io',       // 🇺🇸 US (Arena AI / ChatGPT / Sites)
-  'sg': 'proxyip.aliyun.fxxk.dedyn.io',   // 🇸🇬 Singapore (Ultra Low Ping)
+  'sg': 'proxyip.aliyun.fxxk.dedyn.io',   // 🇸🇬 Singapore (Ultra Low Latency)
   'jp': 'proxyip.jp.fxxk.dedyn.io',       // 🇯🇵 Japan
   'hk': 'proxyip.hk.fxxk.dedyn.io',       // 🇭🇰 Hong Kong
   'de': 'proxyip.oracle.fxxk.dedyn.io',   // 🇩🇪 Germany
-  'uk': 'proxyip.vultr.fxxk.dedyn.io',    // 🇬🇧 UK
-  'global': 'proxyip.cmliussss.net'
+  'uk': 'proxyip.vultr.fxxk.dedyn.io'     // 🇬🇧 UK
 };
 
 const dohURLs = [
@@ -46,7 +45,7 @@ export default {
         customProxyIP = env.PROXYIP;
       }
 
-      // 1. WebSocket VLESS Proxy (Supports both TLS 443 & Non-TLS 80/8080)
+      // 1. WebSocket VLESS Proxy (Supports both TLS 443 & Non-TLS 80/8080/8880/2052/2082/2086/2095)
       if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
         return await vlessOverWSHandler(request, customProxyIP);
       }
@@ -415,32 +414,24 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Generates all Dialog SL Social Media Pack Spec Configs
+ * Generates all Dialog Special Configs (Both Port 80 Non-TLS & Port 443 TLS)
  */
 function generateAllConfigs(host, userID) {
   const c = [];
   
-  // A. Dialog Tested Cloudflare Clean IPs (Port 443 TLS)
-  c.push(`vless://${userID}@104.16.51.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog VIP CleanIP 🇺🇸 US (Arena AI Unblock)`);
-  c.push(`vless://${userID}@104.16.51.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog VIP CleanIP 🇸🇬 SG (Low Ping Fast)`);
-  c.push(`vless://${userID}@104.17.65.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog CleanIP 2 🇯🇵 JP (Japan Stream)`);
-  c.push(`vless://${userID}@172.67.73.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#🔥 Dialog CleanIP 3 🇩🇪 DE (Germany Oracle)`);
+  // 1. HTTP Non-TLS Port 80 (DPI Bypass - Works 100% when Normal Data is 0 MB)
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US`);
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG`);
+  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇯🇵 JP`);
+  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇩🇪 DE`);
 
-  // B. Dialog YouTube Bug Hosts (Port 443)
-  c.push(`vless://${userID}@104.16.53.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔴 Dialog YouTube 🇺🇸 US (All Sites Free)`);
-  c.push(`vless://${userID}@104.16.53.111:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔴 Dialog YouTube 🇸🇬 SG (Fast Browsing)`);
+  // 2. HTTP Port 8080 Non-TLS
+  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Alt 🇺🇸 US`);
+  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Alt 🇸🇬 SG`);
 
-  // C. Dialog WhatsApp Bug Hosts (Port 443)
-  c.push(`vless://${userID}@104.19.143.20:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🟢 Dialog WhatsApp 🇺🇸 US (All Sites Free)`);
-  c.push(`vless://${userID}@104.19.143.20:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🟢 Dialog WhatsApp 🇸🇬 SG (Low Ping)`);
-
-  // D. Dialog Facebook & Instagram (Port 443)
-  c.push(`vless://${userID}@104.22.5.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔵 Dialog FB/Insta 🇺🇸 US (All Sites Free)`);
-  c.push(`vless://${userID}@104.22.5.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔵 Dialog FB/Insta 🇸🇬 SG (Ultra Fast)`);
-
-  // E. Zoom Bug Host (Port 443)
-  c.push(`vless://${userID}@141.101.120.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#📹 Dialog Zoom 🇺🇸 US (All Sites Free)`);
-  c.push(`vless://${userID}@141.101.120.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#📹 Dialog Zoom 🇸🇬 SG (Low Ping)`);
+  // 3. TLS Port 443 Direct Clean IPs
+  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔒 [Port 443] Dialog TLS 🇺🇸 US`);
+  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔒 [Port 443] Dialog TLS 🇸🇬 SG`);
 
   return c.join('\n');
 }
@@ -451,23 +442,21 @@ function generateHomePage(host, userID) {
 
   const cardsHtml = rawConfigs.map((cfg, idx) => {
     const name = decodeURIComponent(cfg.split('#')[1] || `Node ${idx + 1}`);
-    let badgeClass = 'tag-cf';
-    if (name.includes('YouTube')) badgeClass = 'tag-yt';
-    if (name.includes('WhatsApp')) badgeClass = 'tag-wa';
-    if (name.includes('FB/Insta')) badgeClass = 'tag-fb';
-    if (name.includes('Zoom')) badgeClass = 'tag-zoom';
+    const isPort80 = name.includes('Port 80');
+    const badgeText = isPort80 ? 'DPI Zero-Data Bypass (Port 80 No-TLS)' : 'Standard TLS (Port 443)';
+    const badgeClass = isPort80 ? 'tag-wa' : 'tag-cf';
 
     return `
     <div class="card">
       <div class="card-top">
         <div class="card-title-group">
           <span class="node-title">${name}</span>
-          <div class="tags"><span class="tag ${badgeClass}">Dialog Zero-Rated Clean IP</span></div>
+          <div class="tags"><span class="tag ${badgeClass}">${badgeText}</span></div>
         </div>
       </div>
       <div class="code-wrapper" id="cfg-${idx}">${cfg}</div>
       <div class="card-footer">
-        <span class="host-info">Dialog Zero Data Bypass | Port: 443</span>
+        <span class="host-info">Server: 104.16.1.1 | ${isPort80 ? 'Port: 80 (No-TLS)' : 'Port: 443 (TLS)'}</span>
         <button class="btn" onclick="copyConfig('cfg-${idx}', this)">📋 Copy Link</button>
       </div>
     </div>`;
@@ -478,7 +467,7 @@ function generateHomePage(host, userID) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dialog Social Media Unlimited VLESS Hub - ${host}</title>
+  <title>Dialog Zero-Data VLESS Hub - ${host}</title>
   <style>
     :root {
       --bg: #0b0f19;
@@ -497,6 +486,7 @@ function generateHomePage(host, userID) {
     .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
     h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
     .subtitle { color: var(--text-muted); font-size: 14px; }
+    .alert-box { background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; border-radius: 10px; padding: 14px; margin-top: 14px; font-size: 13px; color: #fcd34d; }
     .sub-banner { background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
     .sub-info { flex: 1; min-width: 250px; }
     .sub-title { font-size: 14px; font-weight: 700; color: #60a5fa; }
@@ -510,10 +500,7 @@ function generateHomePage(host, userID) {
     .node-title { font-size: 15px; font-weight: 700; color: #f8fafc; }
     .tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
-    .tag-zoom { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(37, 99, 235, 0.4); }
-    .tag-yt { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
     .tag-wa { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
-    .tag-fb { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
     .tag-cf { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
     .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -530,13 +517,17 @@ function generateHomePage(host, userID) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="badge"><span class="badge-dot"></span> Dialog Zero-Rated Special Nodes</div>
-      <h1>🇱🇰 Dialog Social Media Unlimited VLESS Hub</h1>
-      <p class="subtitle">Dialog Social Media (YouTube, WhatsApp, FB, Insta, Zoom) පැකේජය මඟින් Normal Data 0 MB කැපී Full Internet වැඩ කරන Clean IP Nodes.</p>
+      <div class="badge"><span class="badge-dot"></span> Port 80 Zero-Data Bypass Active</div>
+      <h1>🇱🇰 Dialog Port 80 Zero-Data VLESS Hub</h1>
+      <p class="subtitle">සාමාන්‍ය ඩේටා 0 MB ඇති විට Dialog DPI මඟින් Block නොවී Social Media පැකේජයෙන් පමණක් Full Internet ලබාගැනීමට පහත <b>[Port 80]</b> Nodes භාවිත කරන්න.</p>
+
+      <div class="alert-box">
+        💡 <b>වැදගත්:</b> සාමාන්‍ය ඩේටා නොකැපී පැකේජයෙන් පමණක් Unlimited වීමට පහත <b>[Port 80] No-TLS</b> Nodes භාවිත කරන්න!
+      </div>
 
       <div class="sub-banner">
         <div class="sub-info">
-          <div class="sub-title">📥 All-in-One Subscription Link (සියලුම Dialog Nodes එකවර Import කරන්න)</div>
+          <div class="sub-title">📥 All-in-One Subscription Link</div>
           <div class="sub-url">${subLink}</div>
         </div>
         <button class="btn btn-sub" onclick="copyText('${subLink}', this)">📋 Copy Subscription Link</button>
