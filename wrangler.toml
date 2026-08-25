@@ -1,8 +1,7 @@
-name = "vless-proxy-worker"
+name = "vless-proxy"
 main = "_worker.js"
 compatibility_date = "2024-01-01"
 
 [vars]
-# You can override UUID and Proxy IP here if needed
 UUID = "bdeb28a4-ca3f-4665-9da2-6d92b718e4eb"
 PROXY_IP = ""
