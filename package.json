@@ -1,0 +1,23 @@
+{
+  "name": "vless-proxy-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker VLESS VPN Proxy with WebSocket support",
+  "main": "_worker.js",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "keywords": [
+    "vless",
+    "cloudflare-worker",
+    "proxy",
+    "vpn",
+    "v2ray",
+    "websocket"
+  ],
+  "author": "ireshad465-gif",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.50.0"
+  }
+}
