@@ -1,11 +1,10 @@
 // =========================================================================
-// Cloudflare Worker VLESS Edge Proxy (v3.0 - Multi-Country & Social Media SNI)
+// Cloudflare Worker VLESS Edge Proxy (v4.0 - Full Social Media & Zoom Hub)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
 let userID = 'bdeb28a4-ca3f-4665-9da2-6d92b718e4eb';
 
-// Country-Specific Verified ProxyIPs
 const countryProxyMap = {
   'us': 'proxyip.us.fxxk.dedyn.io',       // 🇺🇸 United States (Arena AI, ChatGPT)
   'sg': 'proxyip.aliyun.fxxk.dedyn.io',   // 🇸🇬 Singapore (Ultra Low Latency)
@@ -40,7 +39,6 @@ export default {
       const upgradeHeader = request.headers.get('Upgrade');
       const url = new URL(request.url);
 
-      // Extract custom proxyIP or country code
       let customProxyIP = url.searchParams.get('proxyip') || '';
       const countryCode = url.searchParams.get('cc') || '';
       
@@ -87,9 +85,6 @@ export default {
   }
 };
 
-/**
- * Handles incoming WebSocket VLESS connection
- */
 async function vlessOverWSHandler(request, customProxyIP) {
   const webSocketPair = new WebSocketPair();
   const [client, webSocket] = Object.values(webSocketPair);
@@ -155,9 +150,6 @@ async function vlessOverWSHandler(request, customProxyIP) {
   });
 }
 
-/**
- * Outbound TCP Connection Manager with Smart Country ProxyIP Routing
- */
 async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawClientData, webSocket, vlessResponseHeader, customProxyIP) {
   async function connectAndWrite(targetHost, targetPort) {
     const tcpSocket = connect({
@@ -209,9 +201,6 @@ async function handleTCPOutBound(remoteSocket, addressRemote, portRemote, rawCli
   }
 }
 
-/**
- * Pipe TCP Remote Socket to WebSocket
- */
 async function remoteSocketToWS(remoteSocket, webSocket, vlessResponseHeader, retry) {
   let vlessHeader = vlessResponseHeader;
   let hasIncomingData = false;
@@ -344,7 +333,6 @@ function processVlessHeader(vlessBuffer, expectedUserID) {
 
   let isUDP = false;
   if (command === 1) {
-    // TCP
   } else if (command === 2) {
     isUDP = true;
   } else {
@@ -435,26 +423,34 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Generates all 10+ Multi-Country & Social Media Configs (Raw Text)
+ * Generates all 16 Multi-Country & Social Media Configs
  */
 function generateAllConfigs(host, userID) {
   const c = [];
   
-  // YouTube Package Configs
+  // 1. Zoom Package Configs
+  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇺🇸 US - Arena AI & All Sites`);
+  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇸🇬 SG - Ultra Fast Low Ping`);
+  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇯🇵 JP - Japan Fast`);
+  c.push(`vless://${userID}@zoom.us:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#📹 Zoom Pack 🇩🇪 DE - Germany Oracle`);
+
+  // 2. YouTube Package Configs
   c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇺🇸 US - Arena AI & All Sites`);
   c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇸🇬 SG - Ultra Fast`);
   c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇯🇵 JP - Japan High Speed`);
   c.push(`vless://${userID}@www.youtube.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#🔴 YouTube Pack 🇩🇪 DE - Germany Oracle`);
   
-  // WhatsApp Package Configs
+  // 3. WhatsApp Package Configs
   c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇺🇸 US - Arena AI & All Sites`);
   c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇸🇬 SG - Ultra Fast`);
+  c.push(`vless://${userID}@web.whatsapp.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🟢 WhatsApp Pack 🇯🇵 JP - Japan Fast`);
 
-  // Facebook & Instagram Package Configs
+  // 4. Facebook & Instagram Package Configs
   c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇺🇸 US - Arena AI & All Sites`);
   c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇸🇬 SG - Ultra Fast`);
+  c.push(`vless://${userID}@m.facebook.com:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🔵 Facebook/Insta 🇯🇵 JP - Japan Fast`);
 
-  // Super Clean IP Multi-Country Configs
+  // 5. Super Clean IP Multi-Country Configs
   c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇺🇸 US - High Speed`);
   c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇸🇬 SG - Low Latency`);
   c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.hk.fxxk.dedyn.io%26ed%3D2048#⚡ CF Clean IP 🇭🇰 HK - Hong Kong`);
@@ -464,7 +460,7 @@ function generateAllConfigs(host, userID) {
 }
 
 /**
- * Web Dashboard Page with All 12 Configs & Copy Buttons
+ * Web Dashboard Page (Embeds rich UI)
  */
 function generateHomePage(host, userID) {
   const subLink = `https://${host}/sub`;
@@ -472,13 +468,36 @@ function generateHomePage(host, userID) {
 
   const cardsHtml = rawConfigs.map((cfg, idx) => {
     const name = decodeURIComponent(cfg.split('#')[1] || `Node ${idx + 1}`);
+    let group = 'cf';
+    let tagHtml = '<span class="tag tag-cf">Clean IP 104.16.1.1</span>';
+    
+    if (name.includes('Zoom')) {
+      group = 'zoom';
+      tagHtml = '<span class="tag tag-zoom">Zoom Bug Host (zoom.us)</span>';
+    } else if (name.includes('YouTube')) {
+      group = 'yt';
+      tagHtml = '<span class="tag tag-yt">YouTube Bug Host (www.youtube.com)</span>';
+    } else if (name.includes('WhatsApp')) {
+      group = 'wa';
+      tagHtml = '<span class="tag tag-wa">WhatsApp Bug Host (web.whatsapp.com)</span>';
+    } else if (name.includes('Facebook')) {
+      group = 'fb';
+      tagHtml = '<span class="tag tag-fb">FB/Insta Bug Host (m.facebook.com)</span>';
+    }
+
     return `
-    <div class="card">
-      <div class="card-title">
-        <h3>${name}</h3>
-        <button class="btn" onclick="navigator.clipboard.writeText('${cfg}');alert('Copied: ${name}')">Copy Link</button>
+    <div class="card" data-category="${group}">
+      <div class="card-top">
+        <div class="card-title-group">
+          <span class="node-title">${name}</span>
+          <div class="tags">${tagHtml}</div>
+        </div>
       </div>
-      <div class="code-box">${cfg}</div>
+      <div class="code-wrapper" id="cfg-${idx}">${cfg}</div>
+      <div class="card-footer">
+        <span class="host-info">Port: 443 | TLS: Enabled</span>
+        <button class="btn" onclick="copyConfig('cfg-${idx}', this)">📋 Copy Link</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -487,42 +506,134 @@ function generateHomePage(host, userID) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VLESS Social Media & Multi-Country VPN Nodes - ${host}</title>
+  <title>VLESS Social Media & Zoom VPN Hub - ${host}</title>
   <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: #131b2e;
+      --card-inner: #080c14;
+      --border: #1e293b;
+      --primary: #38bdf8;
+      --primary-hover: #0284c7;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #080c14; color: #f1f5f9; padding: 20px; display: flex; justify-content: center; }
-    .container { max-width: 880px; width: 100%; background: #0f172a; border-radius: 16px; padding: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.6); border: 1px solid #1e293b; }
-    .badge { display: inline-block; padding: 6px 14px; background: #10b981; color: #fff; border-radius: 20px; font-weight: bold; font-size: 13px; margin-bottom: 12px; }
-    h1 { font-size: 24px; color: #38bdf8; margin-bottom: 8px; }
-    p { color: #94a3b8; font-size: 14px; line-height: 1.5; margin-bottom: 15px; }
-    .sub-box { background: #1e293b; border-radius: 10px; padding: 15px; margin-bottom: 25px; border: 1px solid #3b82f6; display: flex; justify-content: space-between; align-items: center; }
-    .sub-title { font-weight: 600; color: #38bdf8; font-size: 14px; }
-    .card { background: #080c14; border-radius: 12px; padding: 14px; margin-bottom: 14px; border: 1px solid #1e293b; }
-    .card-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .card-title h3 { font-size: 14px; color: #f8fafc; font-weight: 600; }
-    .code-box { background: #020617; padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; color: #38bdf8; word-break: break-all; margin-top: 6px; user-select: all; }
-    .btn { background: #2563eb; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: 0.2s; }
-    .btn:hover { background: #1d4ed8; }
-    .btn-sub { background: #10b981; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); padding: 24px 16px; display: flex; justify-content: center; line-height: 1.5; }
+    .container { max-width: 960px; width: 100%; }
+    .header { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
+    .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
+    h1 { font-size: 26px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    .subtitle { color: var(--text-muted); font-size: 14px; }
+    .sub-banner { background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+    .sub-info { flex: 1; min-width: 250px; }
+    .sub-title { font-size: 14px; font-weight: 700; color: #60a5fa; }
+    .sub-url { font-family: monospace; font-size: 12px; color: #cbd5e1; word-break: break-all; margin-top: 4px; background: #090d16; padding: 6px 10px; border-radius: 6px; }
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .filter-btn { background: var(--card-bg); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .filter-btn:hover, .filter-btn.active { background: var(--primary); color: #0b0f19; border-color: var(--primary); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s; }
+    .card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .card-title-group { display: flex; flex-direction: column; gap: 4px; }
+    .node-title { font-size: 15px; font-weight: 700; color: #f8fafc; }
+    .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .tag-zoom { background: rgba(37, 99, 235, 0.2); color: #60a5fa; border: 1px solid rgba(37, 99, 235, 0.4); }
+    .tag-yt { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .tag-wa { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+    .tag-fb { background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid rgba(59, 130, 246, 0.4); }
+    .tag-cf { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .host-info { font-size: 11px; color: var(--text-muted); }
+    .btn { background: var(--primary); color: #0b0f19; border: none; padding: 8px 14px; border-radius: 6px; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .btn:hover { background: #7dd3fc; }
+    .btn.copied { background: #10b981 !important; color: #ffffff !important; }
+    .btn-sub { background: #10b981; color: #ffffff; }
     .btn-sub:hover { background: #059669; }
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #10b981; color: white; padding: 12px 20px; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); opacity: 0; transform: translateY(20px); transition: all 0.3s; pointer-events: none; z-index: 100; }
+    #toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
   <div class="container">
-    <span class="badge">● Server Active & Multi-Country Ready</span>
-    <h1>🌐 Social Media Pack & Multi-Country VLESS Nodes</h1>
-    <p>Use these nodes with Dialog, Mobitel, Hutch, and SLT Social Media packages (YouTube, WhatsApp, Facebook, Instagram) to unlock full internet access across multiple countries.</p>
+    <div class="header">
+      <div class="badge"><span class="badge-dot"></span> Server Active (Cloudflare Edge Worker)</div>
+      <h1>🌐 VLESS Social Media & Zoom VPN Hub</h1>
+      <p class="subtitle">Zoom, YouTube, WhatsApp, Facebook, Clean IP පැකේජ මඟින් Full Internet Unlimited කරගැනීමට සියලුම රටවල Nodes පහතින් Copy කරගන්න.</p>
 
-    <div class="sub-box">
-      <div>
-        <div class="sub-title">📥 All-in-One Subscription Link (Import all 12 nodes at once)</div>
-        <div style="font-family: monospace; font-size: 12px; color: #cbd5e1; margin-top: 4px;">${subLink}</div>
+      <div class="sub-banner">
+        <div class="sub-info">
+          <div class="sub-title">📥 All-in-One Subscription Link (සියලුම Nodes 16ම එකවර App එකට දාගන්න)</div>
+          <div class="sub-url">${subLink}</div>
+        </div>
+        <button class="btn btn-sub" onclick="copyText('${subLink}', this)">📋 Copy Subscription Link</button>
       </div>
-      <button class="btn btn-sub" onclick="navigator.clipboard.writeText('${subLink}');alert('Subscription Link Copied! Paste into v2rayNG Subscription')">Copy Subscription Link</button>
     </div>
 
-    ${cardsHtml}
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="filterCards('all', this)">All Nodes (17)</button>
+      <button class="filter-btn" onclick="filterCards('zoom', this)">📹 Zoom Package (4)</button>
+      <button class="filter-btn" onclick="filterCards('yt', this)">🔴 YouTube Package (4)</button>
+      <button class="filter-btn" onclick="filterCards('wa', this)">🟢 WhatsApp Package (3)</button>
+      <button class="filter-btn" onclick="filterCards('fb', this)">🔵 Facebook & Insta (3)</button>
+      <button class="filter-btn" onclick="filterCards('cf', this)">⚡ Clean IP Nodes (4)</button>
+    </div>
+
+    <div class="grid">
+      ${cardsHtml}
+    </div>
   </div>
+
+  <div id="toast">Copied to clipboard! ✓</div>
+
+  <script>
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.innerText = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
+    }
+    function copyConfig(elemId, btn) {
+      const text = document.getElementById(elemId).innerText.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        btn.innerText = '✓ Copied!';
+        btn.classList.add('copied');
+        showToast('Link copied to clipboard!');
+        setTimeout(() => {
+          btn.innerText = '📋 Copy Link';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.innerText = '✓ Copied!';
+        btn.classList.add('copied');
+        showToast('Subscription link copied!');
+        setTimeout(() => {
+          btn.innerText = '📋 Copy Subscription Link';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+    function filterCards(cat, btn) {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const cards = document.querySelectorAll('.card');
+      cards.forEach(c => {
+        if (cat === 'all' || c.getAttribute('data-category') === cat) {
+          c.style.display = 'flex';
+        } else {
+          c.style.display = 'none';
+        }
+      });
+    }
+  </script>
 </body>
 </html>`;
 }
