@@ -1,5 +1,5 @@
 // =========================================================================
-// Cloudflare Worker VLESS Edge Proxy (v6.0 - Dialog Non-TLS 80 & TLS 443)
+// Cloudflare Worker VLESS Edge Proxy (v7.0 - Dialog Zero-Data Port 80 Hub)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
@@ -45,7 +45,7 @@ export default {
         customProxyIP = env.PROXYIP;
       }
 
-      // 1. WebSocket VLESS Proxy (Supports both TLS 443 & Non-TLS 80/8080/8880/2052/2082/2086/2095)
+      // 1. WebSocket VLESS Proxy (Supports all CF Ports: 80, 8080, 8880, 2052, 2082, 2086, 2095, 443)
       if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
         return await vlessOverWSHandler(request, customProxyIP);
       }
@@ -414,24 +414,34 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Generates all Dialog Special Configs (Both Port 80 Non-TLS & Port 443 TLS)
+ * Generates all 14 Port 80 / 8080 / 8880 / 2052 / 2082 Zero-Data Configs
  */
 function generateAllConfigs(host, userID) {
   const c = [];
   
-  // 1. HTTP Non-TLS Port 80 (DPI Bypass - Works 100% when Normal Data is 0 MB)
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US`);
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG`);
-  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇯🇵 JP`);
-  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇩🇪 DE`);
+  // 1. United States (Arena AI, ChatGPT, Web)
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 1`);
+  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 2`);
+  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 3`);
+  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Zero-Data 🇺🇸 US - Alt Port`);
 
-  // 2. HTTP Port 8080 Non-TLS
-  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Alt 🇺🇸 US`);
-  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Alt 🇸🇬 SG`);
+  // 2. Singapore (Ultra Low Latency / Gaming)
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG - Fast Node 1`);
+  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG - Fast Node 2`);
+  c.push(`vless://${userID}@104.16.1.1:8880?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8880] Dialog Zero-Data 🇸🇬 SG - Alt Port`);
 
-  // 3. TLS Port 443 Direct Clean IPs
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🔒 [Port 443] Dialog TLS 🇺🇸 US`);
-  c.push(`vless://${userID}@104.16.1.1:443?encryption=none&security=tls&sni=${host}&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🔒 [Port 443] Dialog TLS 🇸🇬 SG`);
+  // 3. Japan & Hong Kong
+  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇯🇵 JP - Japan Stream`);
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.hk.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇭🇰 HK - Hong Kong Fast`);
+  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Zero-Data 🇯🇵 JP - Alt Port`);
+
+  // 4. Europe (Germany & UK)
+  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇩🇪 DE - Germany Oracle`);
+  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.vultr.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇬🇧 UK - United Kingdom`);
+
+  // 5. Alternate Ports (2052, 2082)
+  c.push(`vless://${userID}@104.16.1.1:2052?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 2052] Dialog Zero-Data 🇸🇬 SG - Gaming Port`);
+  c.push(`vless://${userID}@104.16.1.1:2082?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 2082] Dialog Zero-Data 🇺🇸 US - Web Port`);
 
   return c.join('\n');
 }
@@ -443,8 +453,8 @@ function generateHomePage(host, userID) {
   const cardsHtml = rawConfigs.map((cfg, idx) => {
     const name = decodeURIComponent(cfg.split('#')[1] || `Node ${idx + 1}`);
     const isPort80 = name.includes('Port 80');
-    const badgeText = isPort80 ? 'DPI Zero-Data Bypass (Port 80 No-TLS)' : 'Standard TLS (Port 443)';
-    const badgeClass = isPort80 ? 'tag-wa' : 'tag-cf';
+    const badgeText = isPort80 ? 'Port 80 (DPI Zero-Data Bypass)' : 'Alt Port No-TLS';
+    const badgeClass = isPort80 ? 'tag-port80' : 'tag-altport';
 
     return `
     <div class="card">
@@ -456,7 +466,7 @@ function generateHomePage(host, userID) {
       </div>
       <div class="code-wrapper" id="cfg-${idx}">${cfg}</div>
       <div class="card-footer">
-        <span class="host-info">Server: 104.16.1.1 | ${isPort80 ? 'Port: 80 (No-TLS)' : 'Port: 443 (TLS)'}</span>
+        <span class="host-info">Dialog Zero-Data Mode | No-TLS</span>
         <button class="btn" onclick="copyConfig('cfg-${idx}', this)">📋 Copy Link</button>
       </div>
     </div>`;
@@ -470,10 +480,11 @@ function generateHomePage(host, userID) {
   <title>Dialog Zero-Data VLESS Hub - ${host}</title>
   <style>
     :root {
-      --bg: #0b0f19;
-      --card-bg: #131b2e;
-      --card-inner: #080c14;
+      --bg: #070b12;
+      --card-bg: #0f172a;
+      --card-inner: #030712;
       --border: #1e293b;
+      --border-active: #38bdf8;
       --primary: #38bdf8;
       --text: #f8fafc;
       --text-muted: #94a3b8;
@@ -481,27 +492,27 @@ function generateHomePage(host, userID) {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); color: var(--text); padding: 24px 16px; display: flex; justify-content: center; line-height: 1.5; }
     .container { max-width: 960px; width: 100%; }
-    .header { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .header { background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     .badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
     .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
-    h1 { font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+    h1 { font-size: 26px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
     .subtitle { color: var(--text-muted); font-size: 14px; }
-    .alert-box { background: rgba(245, 158, 11, 0.1); border: 1px solid #f59e0b; border-radius: 10px; padding: 14px; margin-top: 14px; font-size: 13px; color: #fcd34d; }
-    .sub-banner { background: #1e293b; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
+    .notice-box { background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 14px; margin-top: 14px; font-size: 13px; color: #bae6fd; }
+    .sub-banner { background: #131b2e; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
     .sub-info { flex: 1; min-width: 250px; }
     .sub-title { font-size: 14px; font-weight: 700; color: #60a5fa; }
     .sub-url { font-family: monospace; font-size: 12px; color: #cbd5e1; word-break: break-all; margin-top: 4px; background: #090d16; padding: 6px 10px; border-radius: 6px; }
     .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 16px; }
     @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
     .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; justify-content: space-between; transition: transform 0.15s, border-color 0.15s; }
-    .card:hover { border-color: #3b82f6; transform: translateY(-2px); }
+    .card:hover { border-color: var(--border-active); transform: translateY(-2px); }
     .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
     .card-title-group { display: flex; flex-direction: column; gap: 4px; }
     .node-title { font-size: 15px; font-weight: 700; color: #f8fafc; }
     .tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
-    .tag-wa { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
-    .tag-cf { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .tag-port80 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .tag-altport { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
     .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .host-info { font-size: 11px; color: var(--text-muted); }
@@ -518,11 +529,11 @@ function generateHomePage(host, userID) {
   <div class="container">
     <div class="header">
       <div class="badge"><span class="badge-dot"></span> Port 80 Zero-Data Bypass Active</div>
-      <h1>🇱🇰 Dialog Port 80 Zero-Data VLESS Hub</h1>
-      <p class="subtitle">සාමාන්‍ය ඩේටා 0 MB ඇති විට Dialog DPI මඟින් Block නොවී Social Media පැකේජයෙන් පමණක් Full Internet ලබාගැනීමට පහත <b>[Port 80]</b> Nodes භාවිත කරන්න.</p>
+      <h1>🇱🇰 Dialog Social Media Zero-Data VLESS Hub</h1>
+      <p class="subtitle">Dialog Unlimited Social Media පැකේජය මඟින් Normal Data 0 MB කැපී Full Internet Unlimited ලෙස ලබාගැනීමට පහත Port 80 / 8080 Nodes භාවිත කරන්න.</p>
 
-      <div class="alert-box">
-        💡 <b>වැදගත්:</b> සාමාන්‍ය ඩේටා නොකැපී පැකේජයෙන් පමණක් Unlimited වීමට පහත <b>[Port 80] No-TLS</b> Nodes භාවිත කරන්න!
+      <div class="notice-box">
+        💡 <b>සැකසුම් තහවුරු කිරීම:</b> Port 80 Nodes වල <b>Security: none (No TLS)</b> ලෙස ක්‍රියාත්මක වන බැවින් Dialog DPI මඟින් Block නොවී සාමාන්‍ය ඩේටා කැපීමකින් තොරව Full Internet වැඩ කරයි.
       </div>
 
       <div class="sub-banner">
