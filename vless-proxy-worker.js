@@ -1,5 +1,5 @@
 // =========================================================================
-// Cloudflare Worker VLESS Edge Proxy (v7.0 - Dialog Zero-Data Port 80 Hub)
+// Cloudflare Worker VLESS Edge Proxy (v8.0 - TLS 443 & 2096 with ALPN)
 // =========================================================================
 import { connect } from 'cloudflare:sockets';
 
@@ -45,7 +45,7 @@ export default {
         customProxyIP = env.PROXYIP;
       }
 
-      // 1. WebSocket VLESS Proxy (Supports all CF Ports: 80, 8080, 8880, 2052, 2082, 2086, 2095, 443)
+      // 1. WebSocket VLESS Proxy (Supports all CF Ports: 443, 2096, 8443, 2053, 2083, 2087, 80, 8080)
       if (upgradeHeader && upgradeHeader.toLowerCase() === 'websocket') {
         return await vlessOverWSHandler(request, customProxyIP);
       }
@@ -414,34 +414,22 @@ function safeCloseWebSocket(socket) {
 }
 
 /**
- * Generates all 14 Port 80 / 8080 / 8880 / 2052 / 2082 Zero-Data Configs
+ * Generates all Dialog Special Configs (TLS 443 & TLS 2096 with ALPN h2,http/1.1)
  */
 function generateAllConfigs(host, userID) {
   const c = [];
   
-  // 1. United States (Arena AI, ChatGPT, Web)
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 1`);
-  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 2`);
-  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇺🇸 US - VIP Node 3`);
-  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Zero-Data 🇺🇸 US - Alt Port`);
+  // 1. Port 443 TLS with ALPN & Chrome Fingerprint (Unlocks YouTube App, Browsers, SSL)
+  c.push(`vless://${userID}@104.19.222.79:443?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🇱🇰 Dialog Fast 🇺🇸 US (Arena AI & YouTube)`);
+  c.push(`vless://${userID}@104.19.222.79:443?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🇱🇰 Dialog Fast 🇸🇬 SG (Low Ping 30ms)`);
+  c.push(`vless://${userID}@104.16.51.111:443?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#🇱🇰 Dialog Fast 🇯🇵 JP (Japan Stream)`);
 
-  // 2. Singapore (Ultra Low Latency / Gaming)
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG - Fast Node 1`);
-  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇸🇬 SG - Fast Node 2`);
-  c.push(`vless://${userID}@104.16.1.1:8880?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8880] Dialog Zero-Data 🇸🇬 SG - Alt Port`);
+  // 2. Port 2096 TLS (Special Cloudflare SSL Port - Bypasses DPI)
+  c.push(`vless://${userID}@104.19.222.79:2096?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🇱🇰 [Port 2096] Dialog VIP 🇺🇸 US`);
+  c.push(`vless://${userID}@104.16.51.111:2096?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#🇱🇰 [Port 2096] Dialog VIP 🇸🇬 SG`);
 
-  // 3. Japan & Hong Kong
-  c.push(`vless://${userID}@104.17.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇯🇵 JP - Japan Stream`);
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.hk.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇭🇰 HK - Hong Kong Fast`);
-  c.push(`vless://${userID}@104.16.1.1:8080?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.jp.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 8080] Dialog Zero-Data 🇯🇵 JP - Alt Port`);
-
-  // 4. Europe (Germany & UK)
-  c.push(`vless://${userID}@172.67.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.oracle.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇩🇪 DE - Germany Oracle`);
-  c.push(`vless://${userID}@104.16.1.1:80?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.vultr.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 80] Dialog Zero-Data 🇬🇧 UK - United Kingdom`);
-
-  // 5. Alternate Ports (2052, 2082)
-  c.push(`vless://${userID}@104.16.1.1:2052?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.aliyun.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 2052] Dialog Zero-Data 🇸🇬 SG - Gaming Port`);
-  c.push(`vless://${userID}@104.16.1.1:2082?encryption=none&security=none&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#⚡ [Port 2082] Dialog Zero-Data 🇺🇸 US - Web Port`);
+  // 3. Port 8443 TLS
+  c.push(`vless://${userID}@104.17.65.1:8443?encryption=none&security=tls&sni=${host}&alpn=h2%2Chttp%2F1.1&fp=chrome&type=ws&host=${host}&path=%2F%3Fproxyip%3Dproxyip.us.fxxk.dedyn.io%26ed%3D2048#🇱🇰 [Port 8443] Dialog VIP 🇺🇸 US`);
 
   return c.join('\n');
 }
@@ -452,21 +440,18 @@ function generateHomePage(host, userID) {
 
   const cardsHtml = rawConfigs.map((cfg, idx) => {
     const name = decodeURIComponent(cfg.split('#')[1] || `Node ${idx + 1}`);
-    const isPort80 = name.includes('Port 80');
-    const badgeText = isPort80 ? 'Port 80 (DPI Zero-Data Bypass)' : 'Alt Port No-TLS';
-    const badgeClass = isPort80 ? 'tag-port80' : 'tag-altport';
 
     return `
     <div class="card">
       <div class="card-top">
         <div class="card-title-group">
           <span class="node-title">${name}</span>
-          <div class="tags"><span class="tag ${badgeClass}">${badgeText}</span></div>
+          <div class="tags"><span class="tag tag-port80">TLS + ALPN h2 (Full YouTube & SSL Support)</span></div>
         </div>
       </div>
       <div class="code-wrapper" id="cfg-${idx}">${cfg}</div>
       <div class="card-footer">
-        <span class="host-info">Dialog Zero-Data Mode | No-TLS</span>
+        <span class="host-info">TLS Enabled | ALPN: h2,http/1.1</span>
         <button class="btn" onclick="copyConfig('cfg-${idx}', this)">📋 Copy Link</button>
       </div>
     </div>`;
@@ -477,7 +462,7 @@ function generateHomePage(host, userID) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dialog Zero-Data VLESS Hub - ${host}</title>
+  <title>Dialog High-Speed VLESS Hub - ${host}</title>
   <style>
     :root {
       --bg: #070b12;
@@ -497,7 +482,6 @@ function generateHomePage(host, userID) {
     .badge-dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 8px #10b981; }
     h1 { font-size: 26px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
     .subtitle { color: var(--text-muted); font-size: 14px; }
-    .notice-box { background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 14px; margin-top: 14px; font-size: 13px; color: #bae6fd; }
     .sub-banner { background: #131b2e; border: 1px solid #3b82f6; border-radius: 12px; padding: 16px; margin-top: 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; }
     .sub-info { flex: 1; min-width: 250px; }
     .sub-title { font-size: 14px; font-weight: 700; color: #60a5fa; }
@@ -512,7 +496,6 @@ function generateHomePage(host, userID) {
     .tags { display: flex; gap: 6px; flex-wrap: wrap; }
     .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
     .tag-port80 { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .tag-altport { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .code-wrapper { background: var(--card-inner); border: 1px solid #1e293b; border-radius: 8px; padding: 10px; font-family: ui-monospace, monospace; font-size: 11.5px; color: #38bdf8; word-break: break-all; user-select: all; max-height: 52px; overflow-y: hidden; margin-bottom: 12px; }
     .card-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .host-info { font-size: 11px; color: var(--text-muted); }
@@ -528,13 +511,9 @@ function generateHomePage(host, userID) {
 <body>
   <div class="container">
     <div class="header">
-      <div class="badge"><span class="badge-dot"></span> Port 80 Zero-Data Bypass Active</div>
-      <h1>🇱🇰 Dialog Social Media Zero-Data VLESS Hub</h1>
-      <p class="subtitle">Dialog Unlimited Social Media පැකේජය මඟින් Normal Data 0 MB කැපී Full Internet Unlimited ලෙස ලබාගැනීමට පහත Port 80 / 8080 Nodes භාවිත කරන්න.</p>
-
-      <div class="notice-box">
-        💡 <b>සැකසුම් තහවුරු කිරීම:</b> Port 80 Nodes වල <b>Security: none (No TLS)</b> ලෙස ක්‍රියාත්මක වන බැවින් Dialog DPI මඟින් Block නොවී සාමාන්‍ය ඩේටා කැපීමකින් තොරව Full Internet වැඩ කරයි.
-      </div>
+      <div class="badge"><span class="badge-dot"></span> TLS + ALPN h2 Active</div>
+      <h1>🇱🇰 Dialog High-Speed VLESS Hub</h1>
+      <p class="subtitle">YouTube App, Google සහ Secure Websites සාර්ථකව Open වීම සඳහා <b>ALPN (h2, http/1.1)</b> සහ <b>Port 2096 / 443</b> සහිත Nodes.</p>
 
       <div class="sub-banner">
         <div class="sub-info">
@@ -564,7 +543,7 @@ function generateHomePage(host, userID) {
       navigator.clipboard.writeText(text).then(() => {
         btn.innerText = '✓ Copied!';
         btn.classList.add('copied');
-        showToast('Link copied to clipboard!');
+        showToast('Node Link copied to clipboard!');
         setTimeout(() => {
           btn.innerText = '📋 Copy Link';
           btn.classList.remove('copied');
